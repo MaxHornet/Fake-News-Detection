@@ -748,12 +748,11 @@ If you use this project in academic work, please cite the associated research pa
 @article{hxdistilxgb,
   title   = {HXDistil-XGB: Hybrid Feature-Fusion Fake News Detection
              with Evidence Verification},
-  author  = {Author One},
+  author  = {Dayyan Waseem},
   journal = {Applied Soft Computing},
   year    = {2026}
 }
 
-Replace the author and publication metadata with the final published bibliographic information.
 
 28. Project Status
 
