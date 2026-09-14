@@ -1,33 +1,80 @@
 # HXDistil-XGB
-## Hybrid Transformer–Gradient-Boosting Fake News Detection with Retrieval-Augmented Evidence Verification
 
-HXDistil-XGB is an explainable fake-news detection and evidence-verification system that combines:
+### Hybrid Transformer–Gradient-Boosting Fake News Detection with Retrieval-Augmented Evidence Verification
 
-- DistilBERT contextual semantic embeddings
-- TF-IDF lexical features
-- Handcrafted linguistic and metadata features
-- XGBoost classification
-- Automatic factual claim extraction
-- Google News RSS-based evidence retrieval
-- Semantic evidence re-ranking
-- DeBERTa-based Natural Language Inference (NLI)
-- Source credibility weighting
-- Adaptive evidence fusion
-- SHAP-based explainability
-
-The objective is to move beyond a simple **Real/Fake** prediction by providing an evidence-grounded explanation of why an article is classified in a particular way.
+<p align="center">
+  <img src="https://img.shields.io/badge/Accuracy-98.31%25-brightgreen?style=for-the-badge" alt="Accuracy"/>
+  <img src="https://img.shields.io/badge/F1--Score-98.36%25-brightgreen?style=for-the-badge" alt="F1 Score"/>
+  <img src="https://img.shields.io/badge/Python-3.8%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python"/>
+  <img src="https://img.shields.io/badge/Framework-HuggingFace-orange?style=for-the-badge&logo=huggingface&logoColor=white" alt="HuggingFace"/>
+  <img src="https://img.shields.io/badge/Status-Research%20Prototype-yellow?style=for-the-badge" alt="Status"/>
+</p>
 
 ---
 
-# 1. Overview
+**HXDistil-XGB** is an explainable fake-news detection and evidence-verification system that combines:
+
+| Component | Technology |
+|---|---|
+| Contextual Embeddings | `DistilBERT` (frozen) |
+| Lexical Features | TF-IDF (3,000 features) |
+| Stylistic Features | 7 handcrafted metadata features |
+| Classifier | XGBoost |
+| Claim Extraction | Sentence segmentation + NER |
+| Evidence Retrieval | Google News RSS |
+| Semantic Re-ranking | `all-MiniLM-L6-v2` |
+| NLI Verification | `DeBERTa-v3-base-mnli-fever-anli` |
+| Explainability | SHAP (`TreeExplainer`) |
+
+> The objective is to move beyond a simple **Real / Fake** prediction by providing an evidence-grounded explanation of *why* an article is classified in a particular way.
+
+---
+
+## Table of Contents
+
+1. [Overview](#1-overview)
+2. [Key Contributions](#2-key-contributions)
+3. [Classification Performance](#3-classification-performance)
+4. [Baseline Comparison](#4-baseline-comparison)
+5. [Evidence Verification System](#5-evidence-verification-system)
+6. [Retrieval Engine](#6-retrieval-engine)
+7. [Source Credibility](#7-source-credibility)
+8. [NLI Verification](#8-nli-verification)
+9. [Adaptive Fusion](#9-adaptive-fusion)
+10. [Explainability](#10-explainability)
+11. [Dataset](#11-dataset)
+12. [Dataset Leakage Investigation](#12-dataset-leakage-investigation)
+13. [Retrieval Evaluation](#13-retrieval-evaluation)
+14. [Repository Structure](#14-repository-structure)
+15. [Main Files](#15-main-files)
+16. [Installation](#16-installation)
+17. [Model Files](#17-model-files)
+18. [Running the System](#18-running-the-system)
+19. [Example Output](#19-example-output)
+20. [Important Design Principle](#20-important-design-principle)
+21. [Limitations](#21-limitations)
+22. [Research Reproducibility](#22-research-reproducibility)
+23. [Computational Characteristics](#23-computational-characteristics)
+24. [Future Work](#24-future-work)
+25. [Research Paper](#25-research-paper)
+26. [Disclaimer](#26-disclaimer)
+27. [Citation](#27-citation)
+28. [Project Status](#28-project-status)
+29. [Author](#29-author)
+
+---
+
+## 1. Overview
 
 Traditional fake-news classifiers generally produce a binary prediction:
 
-```text
+```
 Article → Real / Fake
+```
 
-HXDistil-XGB extends this into a multi-stage verification pipeline:
+**HXDistil-XGB** extends this into a multi-stage verification pipeline:
 
+```
                     ┌─────────────────────┐
                     │    News Article     │
                     │ URL / Text / PDF    │
@@ -42,20 +89,20 @@ HXDistil-XGB extends this into a multi-stage verification pipeline:
               │                                 │
               ▼                                 ▼
     ┌─────────────────────┐          ┌─────────────────────┐
-    │ HXDistil-XGB Branch │          │ Evidence Branch     │
+    │ HXDistil-XGB Branch │          │   Evidence Branch   │
     └──────────┬──────────┘          └──────────┬──────────┘
                │                                │
        ┌───────┼────────┐              ┌────────▼─────────┐
        │       │        │              │ Claim Extraction │
        ▼       ▼        ▼              └────────┬─────────┘
-    DistilBERT TF-IDF Metadata                    │
-       │       │        │                        ▼
+    DistilBERT TF-IDF Metadata                  │
+       │       │        │                       ▼
        └───────┼────────┘              ┌──────────────────┐
                ▼                       │ Google News RSS  │
        Feature Fusion                  └────────┬─────────┘
                │                                │
                ▼                                ▼
-          XGBoost                     URL Decoding
+          XGBoost                      URL Decoding
                │                                │
                │                                ▼
                │                       Semantic Ranking
@@ -78,90 +125,85 @@ HXDistil-XGB extends this into a multi-stage verification pipeline:
                     │ Explainable Result │
                     │ Dashboard / JSON   │
                     └────────────────────┘
+```
 
-The classification and evidence-verification branches are designed to provide complementary signals rather than treating retrieval as a replacement for the content classifier.
+The classification and evidence-verification branches are designed to provide **complementary signals** rather than treating retrieval as a replacement for the content classifier.
 
-2. Key Contributions
+---
+
+## 2. Key Contributions
 
 The project contains two major components.
 
-2.1 HXDistil-XGB Classification Model
+### 2.1 HXDistil-XGB Classification Model
 
 The classifier combines three feature families:
 
-Semantic Features
+#### 🔵 Semantic Features
+A frozen `distilbert-base-uncased` model produces contextual embeddings of **768 dimensions**.
 
-A frozen:
+#### 🟡 Lexical Features
+TF-IDF features are extracted from the article text — **3,000 features** in the current implementation.
 
-distilbert-base-uncased
-
-model is used to obtain contextual embeddings.
-
-Dimension:
-
-768
-Lexical Features
-
-TF-IDF features are extracted from the article text.
-
-Current implementation:
-
-3000 TF-IDF features
-Metadata / Stylistic Features
-
+#### 🟢 Metadata / Stylistic Features
 Seven lightweight features are extracted:
 
-Text length
-Uppercase ratio
-Exclamation mark count
-Question mark count
-URL count
-VADER sentiment compound score
-Flesch reading ease
+| Feature | Description |
+|---|---|
+| Text length | Total character/word count |
+| Uppercase ratio | Ratio of uppercase characters |
+| Exclamation marks | Count of `!` |
+| Question marks | Count of `?` |
+| URL count | Number of hyperlinks |
+| VADER sentiment | Compound sentiment score |
+| Flesch reading ease | Readability score |
 
-These are concatenated into a single representation:
+These are concatenated into a single feature vector:
 
-768 + 3000 + 7 = 3775 features
+```
+768 (DistilBERT) + 3,000 (TF-IDF) + 7 (Metadata) = 3,775 features
+```
 
-The resulting vector is classified using XGBoost.
+The resulting vector is classified using **XGBoost**.
 
-3. Classification Performance
+---
 
-On the held-out WELFake test split, HXDistil-XGB achieved:
+## 3. Classification Performance
 
-Metric	Score
-Accuracy	98.31%
-Precision	97.83%
-Recall	98.91%
-F1-score	98.36%
+On the held-out WELFake test split (14,427 articles), HXDistil-XGB achieved:
 
-The held-out test set contains:
+| Metric | Score |
+|---|---|
+| **Accuracy** | **98.31%** |
+| **Precision** | **97.83%** |
+| **Recall** | **98.91%** |
+| **F1-score** | **98.36%** |
 
-14,427 articles
+> Results are reported in the accompanying research paper.
 
-These results are reported in the project research paper.
+---
 
-4. Baseline Comparison
+## 4. Baseline Comparison
 
-The project evaluates HXDistil-XGB against several feature/model configurations using the same experimental setting.
+HXDistil-XGB was evaluated against several feature/model configurations under identical experimental settings:
 
-Model	Accuracy
-Logistic Regression	91.90%
-DistilBERT + XGBoost	93.83%
-DistilBERT + Metadata	94.91%
-TF-IDF + XGBoost	96.58%
-HXDistil-XGB	98.31%
+| Model | Accuracy |
+|---|---|
+| Logistic Regression | 91.90% |
+| DistilBERT + XGBoost | 93.83% |
+| DistilBERT + Metadata | 94.91% |
+| TF-IDF + XGBoost | 96.58% |
+| **HXDistil-XGB (ours)** | **98.31%** ✅ |
 
-The hybrid model provides the strongest performance among the evaluated configurations.
+The hybrid model provides the strongest performance among all evaluated configurations.
 
-5. Evidence Verification System
+---
 
-Classification alone cannot determine whether every factual statement in an article is correct.
+## 5. Evidence Verification System
 
-Therefore, HXDistil-XGB includes a claim-level evidence verification pipeline.
+Classification alone cannot determine whether every factual statement in an article is correct. Therefore, HXDistil-XGB includes a **claim-level evidence verification pipeline**:
 
-For each article:
-
+```
 Article
    ↓
 Sentence Segmentation
@@ -177,34 +219,34 @@ Semantic Re-ranking
 NLI Verification
    ↓
 Evidence Fusion
+```
 
 The system extracts factual claims using:
 
-sentence segmentation
-named-entity information
-fact-oriented verbs
-numerical information
-claim scoring
-boilerplate filtering
-duplicate removal
+- Sentence segmentation
+- Named-entity information
+- Fact-oriented verbs
+- Numerical information
+- Claim scoring
+- Boilerplate filtering
+- Duplicate removal
 
-The current prototype limits the number of claims processed per article.
+> The current prototype limits the number of claims processed per article.
 
-6. Retrieval Engine
+---
 
-The original retrieval prototype used NewsAPI.
+## 6. Retrieval Engine
 
-During development, this approach produced several problems:
+The original retrieval prototype used **NewsAPI**, which produced several problems:
 
-poor search relevance
-unrelated articles
-weak evidence retrieval
-limited coverage
+- Poor search relevance
+- Unrelated articles
+- Weak evidence retrieval
+- Limited coverage
 
-The retrieval stage was therefore redesigned around Google News RSS.
+The retrieval stage was redesigned around **Google News RSS**. The current pipeline:
 
-The current retrieval pipeline is:
-
+```
 Claim
   ↓
 Query Generation
@@ -224,205 +266,187 @@ Paragraph Extraction
 Paragraph Semantic Ranking
   ↓
 Evidence Document
+```
 
-The retrieval engine uses:
+The retrieval engine uses the following libraries:
 
-Google News RSS
-googlenewsdecoder
-Sentence-Transformers
-all-MiniLM-L6-v2
-newspaper3k
-trafilatura
+| Library | Role |
+|---|---|
+| `feedparser` | Google News RSS parsing |
+| `googlenewsdecoder` | Google URL decoding |
+| `sentence-transformers` (`all-MiniLM-L6-v2`) | Semantic ranking |
+| `newspaper3k` | Article downloading |
+| `trafilatura` | Fallback content extraction |
 
-The implementation is provided in:
+Implementation: [`retrieval_engine.py`](retrieval_engine.py)
 
-retrieval_engine.py
+---
 
-The module explicitly implements RSS retrieval, URL decoding, semantic ranking, downloading, paragraph extraction and evidence ranking.
+## 7. Source Credibility
 
-7. Source Credibility
+The retrieval engine assigns configurable credibility weights to recognized publishers:
 
-The retrieval engine assigns configurable credibility weights to recognized publishers.
+| Publisher | Credibility Weight |
+|---|---|
+| Reuters | 1.00 |
+| Associated Press | 1.00 |
+| BBC | 0.98 |
+| Bloomberg | 0.96 |
+| CNBC | 0.95 |
+| TechCrunch | 0.92 |
+| Business Insider | 0.90 |
+| The Verge | 0.88 |
+| Wired | 0.88 |
+| Forbes | 0.84 |
+| Fortune | 0.84 |
 
-Examples include:
+These weights are used as **one component** of the evidence reliability calculation rather than as an independent truth label.
 
-Reuters             1.00
-Associated Press    1.00
-BBC                 0.98
-Bloomberg           0.96
-CNBC                0.95
-TechCrunch          0.92
-Business Insider    0.90
-The Verge           0.88
-Wired               0.88
-Forbes              0.84
-Fortune             0.84
+---
 
-These weights are used as one component of the evidence reliability calculation rather than as an independent truth label.
-
-8. NLI Verification
+## 8. NLI Verification
 
 Retrieved evidence is passed to a pretrained DeBERTa NLI model:
 
+```
 MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli
+```
 
-The model evaluates the relationship between:
+The model evaluates the relationship between a **Claim ↔ Retrieved Evidence** pair and produces one of three labels:
 
-Claim ↔ Retrieved Evidence
+| Label | Meaning |
+|---|---|
+| ✅ Entailment | Evidence supports the claim |
+| ➖ Neutral | Evidence is unrelated or inconclusive |
+| ❌ Contradiction | Evidence contradicts the claim |
 
-and produces:
+The system aggregates these claim-level signals across all retrieved evidence.
 
-Entailment
-Neutral
-Contradiction
+---
 
-The system aggregates these claim-level signals across the retrieved evidence.
+## 9. Adaptive Fusion
 
-9. Adaptive Fusion
+The final system does not rely exclusively on the HXDistil-XGB classifier. Instead, it combines:
 
-The final system does not rely exclusively on the HXDistil-XGB classifier.
+```
+HXDistil-XGB Confidence
+        +
+  Claim Support
+        +
+Contradiction Signals
+        +
+ Evidence Reliability
+        +
+  Source Credibility
+        +
+ Evidence Coverage
+        +
+  Source Diversity
+        ↓
+  Adaptive Fusion
+        ↓
+  Final Verdict
+```
 
-Instead, it combines:
+> The exact fusion weights are treated as implementation-level design choices rather than learned parameters in the current version.
 
-HXDistil-XGB confidence
-claim support
-contradiction signals
-evidence reliability
-source credibility
-evidence coverage
-source diversity
+---
 
-The result is a final evidence-aware verdict.
+## 10. Explainability
 
-Conceptually:
+HXDistil-XGB uses **SHAP** to explain the contribution of the fused feature space via `TreeExplainer`. SHAP analysis can inspect the contribution of:
 
-HXDistil-XGB
-      +
-Claim Verification
-      +
-Evidence Reliability
-      +
-Source Quality
-      +
-Evidence Coverage
-      ↓
-Adaptive Fusion
-      ↓
-Final Verdict
-
-The exact fusion weights are treated as an implementation-level design choice rather than learned parameters in the current version.
-
-10. Explainability
-
-HXDistil-XGB uses SHAP to explain the contribution of the fused feature space.
-
-SHAP analysis is performed using:
-
-TreeExplainer
-
-The explanation can be used to inspect the contribution of:
-
-DistilBERT features
-TF-IDF features
-metadata features
-
-The research implementation evaluates SHAP explanations on a sample of test instances.
+- `DistilBERT` features
+- TF-IDF features
+- Metadata features
 
 The final system additionally exposes:
 
-final verdict
-HXDistil-XGB prediction
-classifier confidence
-extracted claims
-claim-level NLI results
-evidence sources
-evidence quality
-source reliability
-fusion score
-11. Dataset
+| Output Field | Description |
+|---|---|
+| Final Verdict | Evidence-aware classification |
+| HXDistil-XGB Prediction | Raw classifier output |
+| Classifier Confidence | Prediction probability |
+| Extracted Claims | Top-K factual claims |
+| Claim-Level NLI Results | Entailment / Neutral / Contradiction per claim |
+| Evidence Sources | Retrieved article URLs |
+| Evidence Quality | Aggregated evidence score |
+| Source Reliability | Credibility-weighted score |
+| Fusion Score | Combined evidence-aware score |
 
-The project investigated multiple fake-news datasets including:
+---
 
-WELFake
-LIAR
-ISOT
+## 11. Dataset
 
-The training pipeline uses WELFake together with LIAR data for model development, while the principal reported classification evaluation uses a held-out WELFake test split.
+The project investigated multiple fake-news datasets:
 
-The WELFake dataset contains:
+| Dataset | Notes |
+|---|---|
+| **WELFake** | Primary benchmark — 72,134 labeled records |
+| **LIAR** | Used alongside WELFake for training |
+| **ISOT** | Evaluated; substantial overlap with WELFake discovered |
 
-72,134 labeled records
+The principal classification evaluation uses a held-out WELFake test split with an **80 / 20 stratified train/test split**.
 
-A stratified:
+---
 
-80 / 20
+## 12. Dataset Leakage Investigation
 
-train/test split is used.
+An important contribution of this project was discovering **substantial overlap** between WELFake and ISOT:
 
-12. Dataset Leakage Investigation
+| Statistic | Count |
+|---|---|
+| ISOT total rows | 44,898 |
+| ISOT unique articles | 39,105 |
+| WELFake total rows | 72,134 |
+| WELFake unique articles | 63,678 |
+| Articles shared by both datasets | **39,105** |
+| Unique ISOT articles absent from WELFake | **0** |
 
-An important part of this project was discovering substantial overlap between WELFake and ISOT.
+> ⚠️ The initially observed near-perfect ISOT performance was identified as **dataset leakage** rather than evidence of genuine cross-dataset generalisation. This finding is explicitly documented rather than presenting the leaked evaluation as a valid independent benchmark.
 
-The investigation found:
+---
 
-ISOT total rows:                  44,898
-ISOT unique articles:             39,105
-WELFake total rows:               72,134
-WELFake unique articles:          63,678
-Articles shared by both:          39,105
-Unique ISOT articles absent
-from WELFake:                     0
+## 13. Retrieval Evaluation
 
-Therefore, the initially observed near-perfect ISOT performance was identified as dataset leakage rather than evidence of genuine cross-dataset generalisation.
+The project includes a dedicated retrieval evaluation procedure, independent of the classification pipeline:
 
-This finding is explicitly documented rather than presenting the leaked evaluation as a valid independent benchmark.
+| Metric | Description |
+|---|---|
+| Retrieval Success Rate | % of claims with ≥1 retrieved article |
+| Average RSS Results | Mean articles from RSS feed |
+| Average Decoded Results | Mean successfully decoded URLs |
+| Average Downloaded Articles | Mean articles successfully scraped |
+| Average Evidence Items | Mean evidence paragraphs per claim |
+| Pseudo-MRR | Approximate Mean Reciprocal Rank |
+| Average Semantic Similarity | Mean cosine similarity of top evidence |
+| Trusted Source Ratio | Fraction from high-credibility publishers |
 
-13. Retrieval Evaluation
+This distinction is critical:
 
-The project also includes a retrieval evaluation procedure.
+```
+Good Classifier  ≠  Good Evidence Retrieval
+Good Retrieval   ≠  Correct Final Verdict
+```
 
-Example evaluation metrics include:
+The project evaluates all components **separately**.
 
-Retrieval Success Rate
-Average RSS Results
-Average Decoded Results
-Average Downloaded Articles
-Average Evidence Items
-Pseudo-MRR
-Average Semantic Similarity
-Trusted Source Ratio
+---
 
-These metrics evaluate the retrieval pipeline independently from the final fake-news classification accuracy.
+## 14. Repository Structure
 
-This distinction is important because:
-
-Good classifier
-≠
-Good evidence retrieval
-
-and:
-
-Good retrieval
-≠
-Correct final verdict
-
-The project therefore evaluates the components separately.
-
-14. Repository Structure
-
-A recommended repository structure is:
-
+```
 HXDistil-XGB/
 │
 ├── README.md
 │
-├── fakenews_prototype6.ipynb
+├── fakenews_prototype6.ipynb          ← Main end-to-end prototype
 │
 ├── Prototype2_Train_on_WELFAKE+LIAR.ipynb
 ├── Prototype2_Evaluation_on_ISOT.ipynb
 │
-├── retrieval_engine.py
-├── webscrape.py
+├── retrieval_engine.py                ← Reusable evidence retrieval module
+├── webscrape.py                       ← Reusable article-processing module
 │
 ├── models/
 │   ├── HXDistil_XGB_v2.joblib
@@ -443,210 +467,200 @@ HXDistil-XGB/
 └── docs/
     ├── progress_report.pdf
     └── supplementary_technical_report.md
+```
 
-Large datasets and model binaries should preferably be hosted separately rather than committed directly to GitHub.
+> Large datasets and model binaries should preferably be hosted separately rather than committed directly to GitHub.
 
-15. Main Files
-fakenews_prototype6.ipynb
+---
 
-Main end-to-end prototype.
+## 15. Main Files
 
-It integrates:
-
-article scraping
-preprocessing
-HXDistil-XGB inference
-claim extraction
-Google News retrieval
-evidence verification
-adaptive fusion
-result generation
+### `fakenews_prototype6.ipynb`
+Main end-to-end prototype. Integrates:
+- Article scraping & preprocessing
+- HXDistil-XGB inference
+- Claim extraction
+- Google News retrieval
+- Evidence verification
+- Adaptive fusion
+- Result generation
 
 The notebook imports the reusable scraper and retrieval modules rather than duplicating the complete retrieval implementation.
 
-retrieval_engine.py
+---
 
-Reusable evidence retrieval module.
+### `retrieval_engine.py`
+Reusable evidence retrieval module. Responsibilities:
 
-Main responsibilities:
+```
+Google News RSS  →  URL Decoding  →  Candidate Ranking
+  →  Article Downloading  →  Paragraph Extraction  →  Evidence Ranking
+```
 
-Google News RSS
-↓
-URL decoding
-↓
-Candidate ranking
-↓
-Article downloading
-↓
-Paragraph extraction
-↓
-Evidence ranking
+---
 
-webscrape.py
+### `webscrape.py`
+Reusable article-processing module. Supports:
+- URL article extraction
+- Pasted article text
+- PDF extraction
+- Title extraction
+- Article categorisation
+- Summary generation
 
-Reusable article-processing module.
+---
 
-It supports:
+## 16. Installation
 
-URL article extraction
-pasted article text
-PDF extraction
-title extraction
-article categorisation
-summary generation
+The project was developed primarily in **Google Colab**. Install the required Python packages:
 
-16. Installation
-
-The project was developed primarily in Google Colab.
-
-Install the required Python packages:
-
+```bash
 pip install newspaper3k beautifulsoup4 pandas nltk spacy gensim scikit-learn lxml_html_clean
 pip install transformers sentence-transformers xgboost joblib shap textstat vaderSentiment feedparser
 pip install googlenewsdecoder trafilatura sentencepiece pypdf
+```
 
 Install the spaCy English model:
 
+```bash
 python -m spacy download en_core_web_sm
+```
 
-The project notebooks use these packages for the classification, NLP, scraping, retrieval and explainability pipeline.
+---
 
-17. Model Files
+## 17. Model Files
 
-The inference pipeline expects the trained artifacts:
+The inference pipeline expects the following trained artifacts:
 
+| File | Description |
+|---|---|
+| `HXDistil_XGB_v2.joblib` | Trained XGBoost classifier |
+| `tfidf.joblib` | Fitted TF-IDF vectorizer |
+
+The notebook loads these artifacts at inference time rather than retraining the model for every run.
+
+---
+
+## 18. Running the System
+
+### Step 1 — Prepare the environment
+Install the dependencies and spaCy model (see [Installation](#16-installation)).
+
+### Step 2 — Place model files
+Place the following in the configured model directory:
+```
 HXDistil_XGB_v2.joblib
 tfidf.joblib
+```
 
-The notebook loads these artifacts rather than retraining the model for every inference run.
-
-The trained model and TF-IDF vectorizer were saved specifically to allow subsequent inference without repeating the training process.
-
-18. Running the System
-Step 1 — Prepare the environment
-
-Install the dependencies and spaCy model.
-
-Step 2 — Place model files
-
-Place:
-
-HXDistil_XGB_v2.joblib
-tfidf.joblib
-
-in the configured model directory.
-
-Step 3 — Place modules beside the notebook
+### Step 3 — Place modules beside the notebook
+```
 webscrape.py
 retrieval_engine.py
+```
+Both must be accessible from the notebook working directory.
 
-should be accessible from the notebook.
+### Step 4 — Run the main notebook
+Open `fakenews_prototype6.ipynb` and execute the cells sequentially.
 
-Step 4 — Run the main notebook
+### Step 5 — Provide an article
+The system accepts three input types:
 
-Open:
+| Input Type | Description |
+|---|---|
+| 🔗 URL | Direct article link |
+| 📄 Pasted text | Raw article body |
+| 📑 PDF | Uploaded document |
 
-fakenews_prototype6.ipynb
-
-and execute the cells sequentially.
-
-Step 5 — Provide an article
-
-The system accepts article inputs through the scraping/inference pipeline.
-
-Supported input types include:
-
-URL
-Pasted article text
-PDF
-Step 6 — Inspect the result
-
+### Step 6 — Inspect the result
 The system produces:
 
-HXDistil-XGB Prediction
-Confidence
-Extracted Claims
-Evidence Sources
-Claim Verification
-Evidence Quality
-Source Reliability
-Fusion Score
-Final Verdict
-Explanation
-19. Example Output
+| Output | Description |
+|---|---|
+| HXDistil-XGB Prediction | `REAL` / `FAKE` |
+| Confidence | Classifier probability |
+| Extracted Claims | Top-K factual statements |
+| Evidence Sources | Retrieved article URLs |
+| Claim Verification | NLI labels per claim |
+| Evidence Quality | Aggregated evidence score |
+| Source Reliability | Credibility-weighted score |
+| Fusion Score | Combined evidence-aware score |
+| **Final Verdict** | Evidence-grounded conclusion |
+| Explanation | SHAP-based feature attribution |
 
-A typical result contains:
+---
 
-HXDistil Prediction: REAL
-HXDistil Confidence: 79.41%
+## 19. Example Output
 
-Claim Support Score: 71.01
-Evidence Quality: 53.76
-Evidence Reliability: 56.20
-Trusted Source Ratio: 25.00
-Source Diversity: 66.67
-Fusion Confidence: 66.64%
+```
+════════════════════════════════════════════════
+           HXDistil-XGB Result Dashboard
+════════════════════════════════════════════════
 
-Final Verdict: VERIFIED
+  HXDistil Prediction : REAL
+  HXDistil Confidence : 79.41%
+
+────────────────────────────────────────────────
+  Evidence Signals
+────────────────────────────────────────────────
+  Claim Support Score  : 71.01
+  Evidence Quality     : 53.76
+  Evidence Reliability : 56.20
+  Trusted Source Ratio : 25.00
+  Source Diversity     : 66.67
+  Fusion Confidence    : 66.64%
+
+════════════════════════════════════════════════
+  ✅  Final Verdict    : VERIFIED
+════════════════════════════════════════════════
+```
 
 The dashboard exposes both the original classifier result and the evidence-based verification signals instead of hiding the intermediate reasoning.
 
-20. Important Design Principle
+---
 
-The system deliberately separates:
+## 20. Important Design Principle
 
-Classification
+The system deliberately separates **Classification** from **Fact Verification**:
 
-from:
+| Branch | Question Answered |
+|---|---|
+| 🤖 HXDistil-XGB | *"Does this article resemble real/fake patterns learned from training data?"* |
+| 🔍 Evidence Branch | *"Are the important factual claims supported or contradicted by independently retrieved evidence?"* |
 
-Fact Verification
+The final system **combines** these signals. This is important because a classifier can incorrectly label a genuine article, while strong external evidence can provide information unavailable to a static training corpus.
 
-The HXDistil-XGB model answers:
+---
 
-Does this article resemble the real/fake patterns learned from the training data?
+## 21. Limitations
 
-The evidence branch answers:
+### Dataset Limitations
+The principal benchmark is based on WELFake. Substantial overlap with ISOT means the leaked ISOT result is not treated as independent generalisation evidence.
 
-Are the important factual claims in this article supported or contradicted by independently retrieved evidence?
+### Retrieval Limitations
+- Google News RSS provides **candidate discovery**, not guaranteed factual truth.
+- Publisher pages may block automated downloading, requiring fallback extraction methods.
 
-The final system combines these signals.
-
-This is important because a classifier can incorrectly label a genuine article, while strong external evidence can provide information unavailable to a static training corpus.
-
-21. Limitations
-
-The current implementation has several limitations.
-
-Dataset limitations
-
-The principal benchmark evaluation is based on WELFake, and the investigation found substantial overlap between WELFake and ISOT. Therefore, the leaked ISOT result is not treated as independent generalisation evidence.
-
-Retrieval limitations
-
-Google News RSS provides candidate discovery rather than guaranteed factual truth.
-
-Publisher pages may also block automated downloading, requiring fallback extraction methods.
-
-NLI limitations
-
+### NLI Limitations
 NLI predictions depend on:
+- Quality of retrieved evidence
+- Wording of the claim
+- Evidence context
+- Pretrained NLI model limitations
 
-quality of retrieved evidence
-wording of the claim
-evidence context
-pretrained NLI model limitations
-Fusion limitations
+### Fusion Limitations
+The current fusion weights are **manually designed** implementation parameters rather than learned from a dedicated end-to-end verification dataset.
 
-The current fusion weights are manually designed implementation parameters rather than learned from a dedicated end-to-end verification dataset.
+### Real-World Misinformation
+> ⚠️ The system should not be treated as an autonomous authority on truth. A final evidence-grounded verdict should always be interpreted together with the retrieved sources and claim-level evidence.
 
-Real-world misinformation
+---
 
-The system should not be treated as an autonomous authority on truth. A final evidence-grounded verdict should be interpreted together with the retrieved sources and claim-level evidence.
+## 22. Research Reproducibility
 
-22. Research Reproducibility
+The project keeps all major stages modular:
 
-The project keeps the major stages modular:
-
+```
 Training
     ↓
 Saved Model
@@ -666,85 +680,80 @@ NLI Verification
 Adaptive Fusion
     ↓
 Explainable Result
+```
 
 The supplementary technical material documents the experiments, implementation decisions and architecture details derived from the project notebooks.
 
-23. Computational Characteristics
+---
 
-The classification branch is designed to remain relatively lightweight compared with a fully fine-tuned transformer classifier.
+## 23. Computational Characteristics
 
-The major computational components are:
+The classification branch is designed to remain **relatively lightweight** compared with a fully fine-tuned transformer classifier.
 
-DistilBERT embedding
-TF-IDF transformation
-XGBoost inference
+| Branch | Components | Cost |
+|---|---|---|
+| Classification | DistilBERT embedding, TF-IDF transform, XGBoost inference | 🟢 Lightweight |
+| Evidence | Network retrieval, article downloading, MiniLM ranking, paragraph processing, DeBERTa NLI | 🔴 Expensive |
 
-The evidence branch is more expensive because it additionally requires:
+> Evidence verification can be treated as a **separate or selective stage** when computational budget is limited.
 
-Network retrieval
-Article downloading
-MiniLM semantic ranking
-Paragraph processing
-DeBERTa NLI inference
+---
 
-Therefore, evidence verification can be treated as a separate or selective stage when required.
+## 24. Future Work
 
-24. Future Work
+Planned research directions:
 
-Planned research directions include:
+- [ ] Larger and more diverse datasets
+- [ ] Independently collected test datasets
+- [ ] Improved claim extraction
+- [ ] Stronger retrieval models
+- [ ] Learned fusion weights
+- [ ] Retrieval calibration
+- [ ] Additional source-quality modelling
+- [ ] Statistical significance testing
+- [ ] Latency benchmarking
+- [ ] Larger-scale real-world evaluation
+- [ ] Multilingual fake-news verification
+- [ ] Improved evidence coverage
+- [ ] Human fact-checker comparison
 
-larger and more diverse datasets
-independently collected test datasets
-improved claim extraction
-stronger retrieval models
-learned fusion weights
-retrieval calibration
-additional source-quality modelling
-statistical significance testing
-latency benchmarking
-larger-scale real-world evaluation
-multilingual fake-news verification
-improved evidence coverage
-human fact-checker comparison
-25. Research Paper
+---
+
+## 25. Research Paper
 
 The project is accompanied by a research manuscript:
 
-HXDistil-XGB: Hybrid Feature-Fusion Fake News Detection with Evidence Verification
+> **HXDistil-XGB: Hybrid Feature-Fusion Fake News Detection with Evidence Verification**
 
 The manuscript describes the proposed architecture, experimental evaluation, ablation studies, explainability analysis and retrieval-augmented verification framework.
 
-The current paper reports the WELFake results of:
+**Reported WELFake Results:**
 
-Accuracy : 98.31%
-Precision: 97.83%
-Recall   : 98.91%
-F1       : 98.36%
+| Metric | Score |
+|---|---|
+| Accuracy | 98.31% |
+| Precision | 97.83% |
+| Recall | 98.91% |
+| F1-score | 98.36% |
 
-26. Disclaimer
+---
 
-This project is a research prototype.
+## 26. Disclaimer
 
-The system should not be considered a replacement for professional fact-checkers or authoritative sources.
+> ⚠️ This project is a **research prototype** and should not be considered a replacement for professional fact-checkers or authoritative sources.
 
-A prediction of:
+- A prediction of `FAKE` does **not** by itself prove that an article is false.
+- A prediction of `REAL` does **not** guarantee that every factual claim in an article is correct.
 
-FAKE
+The evidence-verification layer is intended to provide **additional context** and source-attributed evidence to support human interpretation.
 
-does not by itself prove that an article is false.
+---
 
-Similarly:
-
-REAL
-
-does not guarantee that every factual claim in an article is correct.
-
-The evidence-verification layer is intended to provide additional context and source-attributed evidence to support human interpretation.
-
-27. Citation
+## 27. Citation
 
 If you use this project in academic work, please cite the associated research paper:
 
+```bibtex
 @article{hxdistilxgb,
   title   = {HXDistil-XGB: Hybrid Feature-Fusion Fake News Detection
              with Evidence Verification},
@@ -752,52 +761,70 @@ If you use this project in academic work, please cite the associated research pa
   journal = {Applied Soft Computing},
   year    = {2026}
 }
+```
 
+---
 
-28. Project Status
+## 28. Project Status
 
-Current implementation:
+| Feature | Status |
+|---|---|
+| Dataset preprocessing | ✅ Complete |
+| Dataset overlap investigation | ✅ Complete |
+| DistilBERT feature extraction | ✅ Complete |
+| TF-IDF feature extraction | ✅ Complete |
+| Metadata feature extraction | ✅ Complete |
+| HXDistil-XGB training | ✅ Complete |
+| Baseline comparison | ✅ Complete |
+| SHAP explainability | ✅ Complete |
+| Article scraping | ✅ Complete |
+| Claim extraction | ✅ Complete |
+| Google News RSS retrieval | ✅ Complete |
+| Google URL decoding | ✅ Complete |
+| Semantic evidence ranking | ✅ Complete |
+| Paragraph-level evidence ranking | ✅ Complete |
+| DeBERTa NLI verification | ✅ Complete |
+| Source credibility scoring | ✅ Complete |
+| Evidence fusion | ✅ Complete |
+| Explainable dashboard | ✅ Complete |
+| Retrieval evaluation | ✅ Complete |
+| JSON/CSV result export | ✅ Complete |
+| Research documentation | ✅ Complete |
 
-[✓] Dataset preprocessing
-[✓] Dataset overlap investigation
-[✓] DistilBERT feature extraction
-[✓] TF-IDF feature extraction
-[✓] Metadata feature extraction
-[✓] HXDistil-XGB training
-[✓] Baseline comparison
-[✓] SHAP explainability
-[✓] Article scraping
-[✓] Claim extraction
-[✓] Google News RSS retrieval
-[✓] Google URL decoding
-[✓] Semantic evidence ranking
-[✓] Paragraph-level evidence ranking
-[✓] DeBERTa NLI verification
-[✓] Source credibility scoring
-[✓] Evidence fusion
-[✓] Explainable dashboard
-[✓] Retrieval evaluation
-[✓] JSON/CSV result export
-[✓] Research documentation
-29. Author
+---
 
-Developed as a research project on:
+## 29. Author
 
-Explainable Fake News Detection and Evidence-Based Fact Verification
+Developed as a research project on **Explainable Fake News Detection and Evidence-Based Fact Verification**.
 
-Primary technologies:
+**Primary Technologies:**
 
-Python
-PyTorch
-Hugging Face Transformers
-DistilBERT
-XGBoost
-TF-IDF
-Sentence-Transformers
-DeBERTa
-spaCy
-SHAP
-Google News RSS
-newspaper3k
-trafilatura
-scikit-learn
+<p>
+  <img src="https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white"/>
+  <img src="https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
+  <img src="https://img.shields.io/badge/HuggingFace-FFD21E?style=flat-square&logo=huggingface&logoColor=black"/>
+  <img src="https://img.shields.io/badge/DistilBERT-0A66C2?style=flat-square"/>
+  <img src="https://img.shields.io/badge/XGBoost-FF6600?style=flat-square"/>
+  <img src="https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikit-learn&logoColor=white"/>
+  <img src="https://img.shields.io/badge/spaCy-09A3D5?style=flat-square&logo=spacy&logoColor=white"/>
+  <img src="https://img.shields.io/badge/SHAP-8A2BE2?style=flat-square"/>
+</p>
+
+| Technology | Role |
+|---|---|
+| Python | Primary language |
+| PyTorch | Deep learning backend |
+| Hugging Face Transformers | `DistilBERT`, `DeBERTa` models |
+| Sentence-Transformers | Semantic ranking (`all-MiniLM-L6-v2`) |
+| XGBoost | Classification |
+| TF-IDF (scikit-learn) | Lexical features |
+| spaCy | NLP / claim extraction |
+| SHAP | Explainability |
+| Google News RSS | Evidence retrieval |
+| `newspaper3k` / `trafilatura` | Article scraping |
+
+---
+
+<p align="center">
+  <sub>HXDistil-XGB — Research Prototype · Dayyan Waseem · 2026</sub>
+</p>
